@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forum App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        form {
+            margin-top: 20px;
+        }
+
+        input,
+        button {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar">
+        <h1>Chat</h1>
+        <h2>Your ID: <span id="ws-id"></span></h2>
+        <form action="" onsubmit="sendMessage(event)">
+            <input class="bg-green-300" type="text" id="messageText" autocomplete="off" />
+            <button>Send</button>
+        </form>
+        <ul id='messages'> </ul>
+    </div>
+
+    <div class="container">
+        <h1>Forum App</h1>
+
+        <!-- Task 1: Login Form -->
+        <form id="loginForm" onsubmit="login(event)">
+            <label for="name">Name:</label>
+            <input type="text" id="name" required>
+            <button type="submit">Login</button>
+        </form>
+
+        <!-- Task 1.1: Display Forums -->
+        <h2>Forums:</h2>
+        <ul id="forumsList"></ul>
+
+        <!-- Task 2: Create Forum Form -->
+<form id="createForumForm" onsubmit="createForum(event)">
+    <label for="forumTitle">Forum Title:</label>
+    <input type="text" id="forumTitle" required>
+    <button type="submit">Create Forum</button>
+</form>
+
+<!-- Task 3: Display Threads -->
+<h2>Threads:</h2>
+        <ul id="threadsList"></ul>
+<select id="forumSelect" onchange="loadThreads()">
+    <!-- Options will be dynamically added here -->
+</select>
+
+<!-- Task 4: Create Thread Form -->
+<form id="createThreadForm" onsubmit="createThread(event)">
+    <label for="threadTitle">Thread Title:</label>
+    <input type="text" id="threadTitle" required>
+    <button type="submit">Create Thread</button>
+</form>
+
+<!-- Task 5: Display Messages -->
+<h2>Messages:</h2>
+        <ul id="messagesList"></ul>
+<select id="threadSelect" onchange="loadMessages()">
+     Options will be dynamically added here
+</select>
+
+<!-- Task 6: Create Message Form -->
+<form id="createMessageForm" onsubmit="createMessage(event)">
+    <label for="messageContent">Message:</label>
+    <input type="text" id="messageContent" required>
+    <button type="submit">Send Message</button>
+</form>
+    </div>
+
+    <script>
+        let user = undefined
+        async function login(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('name').value;
+            const response = await fetch(`{{server_url}}/api/v1/auth/login/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                }),
+            });
+
+            if (response.ok) {
+                const userData = await response.json(); 
+                console.log('Logged in:', userData);
+                user = userData
+                connect(name)
+                // TODO: Extract name and id, update UI
+                await loadForums(); // Load forums after successful login
+            } else {
+                console.error('Login failed:', response.status, response.statusText);
+            }
+        }
+
+        async function loadForums() {
+    const response = await fetch(`{{server_url}}/api/v1/forums/`);
+    if (response.ok) {
+        const forums = await response.json();
+        updateForumsList(forums);
+    } else {
+        console.error('Failed to load forums:', response.status, response.statusText);
+    }
+}
+
+function updateForumsList(forums) {
+    const forumsList = document.getElementById('forumsList');
+    const forumSelect = document.getElementById('forumSelect');
+
+    forumsList.innerHTML = '';
+    forumSelect.innerHTML = '';
+
+    forums.forEach(forum => {
+        const li = document.createElement('li');
+        li.textContent = forum.title;
+        forumsList.appendChild(li);
+
+        const option = document.createElement('option');
+        option.value = forum.id;
+        option.textContent = forum.title;
+        forumSelect.appendChild(option);
+    });
+
+    // Load threads and messages for the first forum
+    loadThreads();
+}
+
+async function loadThreads() {
+    const forumId = document.getElementById('forumSelect').value;
+    const response = await fetch(`{{server_url}}/api/v1/forums/threads/forum/${forumId}/`);
+    if (response.ok) {
+        const threads = await response.json();
+        updateThreadsList(threads);
+
+        // Load messages for the first thread
+        if (threads.length > 0) {
+            await loadMessages();
+        }
+    } else {
+        console.error('Failed to load threads:', response.status, response.statusText);
+    }
+}
+
+function updateThreadsList(threads) {
+    const threadsList = document.getElementById('threadsList');
+    const threadSelect = document.getElementById('threadSelect');
+
+    threadsList.innerHTML = '';
+    threadSelect.innerHTML = '';
+
+    threads.forEach(thread => {
+        const li = document.createElement('li');
+        li.textContent = thread.title;
+        threadsList.appendChild(li);
+
+        const option = document.createElement('option');
+        option.value = thread.id;
+        option.textContent = thread.title;
+        threadSelect.appendChild(option);
+    });
+
+    // Load messages for the first thread
+    loadMessages();
+}
+
+async function loadMessages() {
+    const threadId = document.getElementById('threadSelect').value;
+    const response = await fetch(`{{server_url}}/api/v1/forums/threads/messages/thread/${threadId}/`);
+    if (response.ok) {
+        const messages = await response.json();
+        // console.log(messages)
+
+        updateMessagesList(messages);
+    } else {
+        console.error('Failed to load messages:', response.status, response.statusText);
+    }
+}
+
+function updateMessagesList(messages) {
+    const messagesList = document.getElementById('messagesList');
+
+    messagesList.innerHTML = '';
+
+    messages.forEach(message => {
+        const li = document.createElement('li');
+        li.textContent = `(Author ID: ${message.author_id}) ${message.content}`;
+        messagesList.appendChild(li);
+    });
+}
+async function createMessage(event) {
+    event.preventDefault();
+
+    const messageContent = document.getElementById('messageContent').value;
+    const threadId = document.getElementById('threadSelect').value;
+
+    const response = await fetch(`{{server_url}}/api/v1/forums/threads/messages/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            content: messageContent,
+            author_id: getUserId(),
+            thread_id: threadId,
+        }),
+    });
+
+    if (response.ok) {
+        console.log('Message created successfully');
+        await loadMessages(); // Refresh messages list after creating a new message
+    } else {
+        console.error('Failed to create message:', response.status, response.statusText);
+    }
+}
+        async function createForum(event) {
+            event.preventDefault();
+
+            const forumTitle = document.getElementById('forumTitle').value;
+            const response = await fetch(`{{server_url}}/api/v1/forums/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: forumTitle,
+                    author_id: getUserId(),
+                }),
+            });
+
+            if (response.ok) {
+                console.log('Forum created successfully');
+                await loadForums(); // Refresh forums list after creating a new forum
+            } else {
+                console.error('Failed to create forum:', response.status, response.statusText);
+            }
+        }
+
+        async function createThread(event) {
+    event.preventDefault();
+
+    const threadTitle = document.getElementById('threadTitle').value;
+    const forumId = document.getElementById('forumSelect').value;
+
+    const response = await fetch(`{{server_url}}/api/v1/forums/threads/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            title: threadTitle,
+            author_id: getUserId(),
+            forum_id: forumId,
+        }),
+    });
+
+    if (response.ok) {
+        console.log('Thread created successfully');
+        await loadThreads(); // Refresh threads list after creating a new thread
+    } else {
+        console.error('Failed to create thread:', response.status, response.statusText);
+    }
+}
+
+        // TODO: Implement other functions (createThread, loadThreads, createMessage, loadMessages)
+
+        function getUserId() {
+            // TODO: Implement a function to get the user ID from your stored data
+            return user.id; // Replace with actual user ID retrieval logic
+        }
+
+        // Load initial data
+        loadForums();
+
+
+
+
+
+        	function appendMessage(msg) {
+		let messages = document.getElementById('messages')
+		let message = document.createElement('li')
+		let content = document.createTextNode(msg)
+		message.appendChild(content)
+		messages.appendChild(message)
+	}
+
+	function connect(client_name) {
+	  let ws = new WebSocket(`ws://{{server_urn}}/api/v1/ws/${client_name}`);
+	  /* ws.onopen = function() {
+		// // subscribe to some channels
+		// ws.send(JSON.stringify({
+		// 	//.... some message the I must send when I connect ....
+		// }));
+	   };
+		*/
+	  ws.onmessage = function(e) {
+		console.log('Message:', e.data);
+		appendMessage(e.data)
+          if (e.data.toLowerCase().includes('message')) {
+              loadMessages();
+        }
+          if (e.data.toLowerCase().includes('thread')){
+          loadThreads();
+          }
+          if (e.data.toLowerCase().includes('forum')){
+          loadForums();
+          }
+      }
+
+	  ws.onclose = function(e) {
+		console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+		appendMessage('Socket is closed. Reconnect will be attempted in 1 second.')
+		setTimeout(function() {
+		  connect(client_name);
+		}, 1000);
+	  };
+
+	  ws.onerror = function(err) {
+		console.error('Socket encountered error: ', err.message, 'Closing socket');
+		ws.close();
+	  };
+	}
+
+
+	/*let client_id = Math.floor(Math.random() * 1000) + 1
+	document.querySelector("#ws-id").textContent = client_id;
+	connect(client_id);*/
+
+	/* let ws = new WebSocket(`ws://{{server_urn}}/api/v1/ws/${client_id}`); */
+
+	function sendMessage(event) {
+		let input = document.getElementById("messageText")
+		ws.send(input.value)
+		input.value = ''
+		event.preventDefault()
+	}
+    </script>
+</body>
+
+</html>
