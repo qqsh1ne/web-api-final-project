@@ -314,7 +314,7 @@ async function createMessage(event) {
 	}
 
 	function connect(client_name) {
-	  let ws = new WebSocket(`ws://{{server_urn}}/api/v1/ws/${client_name}`);
+	  let ws = new WebSocket(`wss://{{server_urn}}/api/v1/ws/${client_name}`);
 	  /* ws.onopen = function() {
 		// // subscribe to some channels
 		// ws.send(JSON.stringify({
