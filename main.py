@@ -5,7 +5,7 @@ from api.v1.routers import router as api_router_v1
 
 
 # Templates
-templates = Jinja2Templates(directory="src/templates")
+templates = Jinja2Templates(directory="templates")
 
 app = FastAPI(
     title="Упрощённый аналог форумников",
